@@ -13,6 +13,11 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('companies')->group(function () {
     Route::get('preview-domain', [CompanyController::class, 'previewDomain']);
     Route::post('register', [CompanyController::class, 'register']);
+
+    Route::middleware(['auth:sanctum', 'role:super_admin'])->group(function () {
+        Route::get('/', [CompanyController::class, 'index']);
+        Route::get('{company}', [CompanyController::class, 'show']);
+    });
 });
 
 Route::prefix('auth')->group(function () {

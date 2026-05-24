@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Company;
 use App\Models\Domain;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -61,5 +62,33 @@ class CompanyService
             ->first();
 
         return $domain?->company;
+    }
+
+    public function list(array $filters = []): LengthAwarePaginator
+    {
+        $query = Company::query()
+            ->with('domain')
+            ->with(['users' => fn ($q) => $q->role('owner')]);
+
+        if (! empty($filters['search'])) {
+            $search = $filters['search'];
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhereHas('domain', fn ($d) => $d->where('domain', 'like', "%{$search}%"));
+            });
+        }
+
+        $perPage = (int) ($filters['per_page'] ?? 15);
+
+        return $query->latest()->paginate($perPage);
+    }
+
+    public function find(Company $company): Company
+    {
+        return $company->load([
+            'domain',
+            'users' => fn ($q) => $q->role('owner'),
+        ]);
     }
 }
