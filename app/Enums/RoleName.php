@@ -2,6 +2,8 @@
 
 namespace App\Enums;
 
+use App\Models\User;
+
 enum RoleName: string
 {
     case SuperAdmin = 'super_admin';
@@ -51,5 +53,28 @@ enum RoleName: string
             self::Engineer->value,
             self::Employee->value,
         ];
+    }
+
+    public static function adminAssignable(): array
+    {
+        return [
+            self::Manager->value,
+            self::Engineer->value,
+            self::Employee->value,
+            self::Guest->value,
+        ];
+    }
+
+    public static function assignableByPlatformUser(User $user): array
+    {
+        if ($user->hasRole(self::SuperAdmin->value)) {
+            return self::platform();
+        }
+
+        if ($user->hasRole(self::Admin->value)) {
+            return self::adminAssignable();
+        }
+
+        return [];
     }
 }

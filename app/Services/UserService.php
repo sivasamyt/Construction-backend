@@ -2,9 +2,11 @@
 
 namespace App\Services;
 
+use App\Enums\RoleName;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Models\Role;
 
 class UserService
@@ -32,8 +34,12 @@ class UserService
         return $query->latest()->paginate($perPage);
     }
 
-    public function create(array $data): User
+    public function create(array $data, User $actor): User
     {
+        if (! empty($data['roles'])) {
+            $this->assertCanAssignPlatformRoles($actor, $data['roles']);
+        }
+
         $user = User::create([
             'company_id' => null,
             'name' => $data['name'],
@@ -48,8 +54,12 @@ class UserService
         return $user->load('roles', 'permissions');
     }
 
-    public function update(User $user, array $data): User
+    public function update(User $user, array $data, User $actor): User
     {
+        if (array_key_exists('roles', $data)) {
+            $this->assertCanAssignPlatformRoles($actor, $data['roles'] ?? [], $user);
+        }
+
         $user->fill([
             'name' => $data['name'] ?? $user->name,
             'email' => $data['email'] ?? $user->email,
@@ -74,11 +84,42 @@ class UserService
         $user->delete();
     }
 
-    public function assignRoles(User $user, array $roleNames): User
+    public function assignRoles(User $user, array $roleNames, User $actor): User
     {
+        $this->assertCanAssignPlatformRoles($actor, $roleNames, $user);
+
         $roles = Role::whereIn('name', $roleNames)->get();
         $user->syncRoles($roles);
 
         return $user->load('roles', 'permissions');
+    }
+
+    private function assertCanAssignPlatformRoles(User $actor, array $roles, ?User $target = null): void
+    {
+        if ($actor->hasRole(RoleName::SuperAdmin->value)) {
+            return;
+        }
+
+        if ($actor->hasRole(RoleName::Admin->value)) {
+            $forbidden = array_intersect($roles, RoleName::privileged());
+
+            if ($forbidden !== []) {
+                throw ValidationException::withMessages([
+                    'roles' => ['Admins cannot assign super_admin or admin roles.'],
+                ]);
+            }
+
+            if ($target?->hasAnyRole(RoleName::privileged())) {
+                throw ValidationException::withMessages([
+                    'roles' => ['Admins cannot modify roles for super_admin or admin users.'],
+                ]);
+            }
+
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'roles' => ['You do not have permission to assign roles.'],
+        ]);
     }
 }

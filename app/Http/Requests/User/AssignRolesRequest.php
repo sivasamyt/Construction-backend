@@ -2,12 +2,13 @@
 
 namespace App\Http\Requests\User;
 
-use App\Enums\RoleName;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class AssignRolesRequest extends FormRequest
 {
+    use ValidatesPlatformUserRoles;
+
     public function authorize(): bool
     {
         return $this->user()?->can('users.assign-roles') ?? false;
@@ -17,7 +18,14 @@ class AssignRolesRequest extends FormRequest
     {
         return [
             'roles' => ['required', 'array', 'min:1'],
-            'roles.*' => ['string', Rule::in(RoleName::values())],
+            'roles.*' => ['string', Rule::in($this->assignablePlatformRoles())],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'roles.*.in' => 'You are not allowed to assign one or more of the selected roles.',
         ];
     }
 }

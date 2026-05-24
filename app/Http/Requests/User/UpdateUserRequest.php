@@ -2,12 +2,13 @@
 
 namespace App\Http\Requests\User;
 
-use App\Enums\RoleName;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class UpdateUserRequest extends FormRequest
 {
+    use ValidatesPlatformUserRoles;
+
     public function authorize(): bool
     {
         return $this->user()?->can('users.update') ?? false;
@@ -17,12 +18,17 @@ class UpdateUserRequest extends FormRequest
     {
         $userId = $this->route('user')?->id;
 
-        return [
+        return array_merge([
             'name' => ['sometimes', 'string', 'max:255'],
             'email' => ['sometimes', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId)],
             'password' => ['nullable', 'string', 'min:8', 'confirmed'],
-            'roles' => ['nullable', 'array'],
-            'roles.*' => ['string', Rule::in(RoleName::values())],
+        ], $this->platformRoleRules());
+    }
+
+    public function messages(): array
+    {
+        return [
+            'roles.*.in' => 'You are not allowed to assign one or more of the selected roles.',
         ];
     }
 }

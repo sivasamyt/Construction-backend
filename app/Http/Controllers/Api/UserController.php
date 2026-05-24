@@ -46,7 +46,7 @@ class UserController extends Controller
 
     public function store(StoreUserRequest $request): JsonResponse
     {
-        $user = $this->userService->create($request->validated());
+        $user = $this->userService->create($request->validated(), $request->user());
 
         return $this->success(new UserResource($user), 'User created successfully', 201);
     }
@@ -61,7 +61,7 @@ class UserController extends Controller
 
     public function update(UpdateUserRequest $request, User $user): JsonResponse
     {
-        $user = $this->userService->update($user, $request->validated());
+        $user = $this->userService->update($user, $request->validated(), $request->user());
 
         return $this->success(new UserResource($user), 'User updated successfully');
     }
@@ -75,7 +75,7 @@ class UserController extends Controller
 
     public function assignRoles(AssignRolesRequest $request, User $user): JsonResponse
     {
-        $user = $this->userService->assignRoles($user, $request->validated('roles'));
+        $user = $this->userService->assignRoles($user, $request->validated('roles'), $request->user());
 
         return $this->success(new UserResource($user), 'Roles assigned successfully');
     }
